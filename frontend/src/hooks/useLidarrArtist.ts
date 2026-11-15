@@ -1,7 +1,11 @@
 import { useState } from "react";
+import { hc, parseResponse } from "hono/client";
+import type lidarrArtist from "../../../backend/routes/lidarrArtist.ts";
 import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import { API_BASE_URL, apiFetch, asApiError } from "../utils/api/core.ts";
+
+const lidarrClient = hc<typeof lidarrArtist>(API_BASE_URL, { fetch: apiFetch })["lidarr-artist"];
 
 export function useLidarrArtist(mbid: string | null | undefined, name: string) {
   const [pending, setPending] = useState(false);
@@ -12,12 +16,7 @@ export function useLidarrArtist(mbid: string | null | undefined, name: string) {
     if (!mbid || pending || !canAdd) return;
     setPending(true);
     try {
-      const response = await apiFetch(`${API_BASE_URL}/lidarr-artist`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mbid }),
-      });
-      const result: { alreadyAdded: boolean } = await response.json();
+      const result = await parseResponse(lidarrClient.$post({ json: { mbid } }));
       showSuccess(result.alreadyAdded ? `${name} is already in Lidarr` : `Added ${name} to Lidarr`);
     } catch (error) {
       const data = asApiError(error)?.response?.data;

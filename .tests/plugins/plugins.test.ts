@@ -145,7 +145,8 @@ test("adding an artist uses the enabled Lidarr plugin's root and profiles withou
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : String(input));
     if (url.pathname === "/api/v1/artist" && init?.method === "POST") {
-      const body: Record<string, unknown> = JSON.parse(String(init.body));
+      const body: unknown = JSON.parse(String(init.body));
+      assert.ok(v.is(v.record(v.string(), v.unknown()), body));
       sent.push(body);
       added = true;
       return Response.json(body);

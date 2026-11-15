@@ -1,4 +1,5 @@
-import { API_BASE_URL, apiFetch } from "./api/core.ts";
+import { parseResponse } from "hono/client";
+import { authClient } from "./api/clients/auth.ts";
 
 type PlexResult =
   | { done: false }
@@ -12,19 +13,16 @@ export function openPlexPopup() {
 }
 
 export async function runPlexLogin(popup: Window, link: boolean): Promise<PlexResult> {
-  const path = link ? "/auth/plex/link" : "/auth/plex";
   try {
-    const start = await apiFetch(`${API_BASE_URL}${path}/start`, { method: "POST" });
-    const { id, authUrl }: { id: string; authUrl: string } = await start.json();
+    const { id, authUrl } = link
+      ? await parseResponse(authClient.plex.link.start.$post())
+      : await parseResponse(authClient.plex.start.$post());
     popup.location.href = authUrl;
     for (const deadline = Date.now() + 10 * 60_000; Date.now() < deadline;) {
       await new Promise((resolve) => setTimeout(resolve, 2000));
-      const response = await apiFetch(`${API_BASE_URL}${path}/finish`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      const result: PlexResult = await response.json();
+      const result = link
+        ? await parseResponse(authClient.plex.link.finish.$post({ json: { id } }))
+        : await parseResponse(authClient.plex.finish.$post({ json: { id } }));
       if (result.done) return result;
       if (popup.closed) throw new Error("The Plex sign-in was closed");
     }

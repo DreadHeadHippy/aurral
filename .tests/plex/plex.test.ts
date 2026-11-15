@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { afterAll, afterEach, beforeEach, test } from "vite-plus/test";
+import * as v from "valibot";
 import { signedInAs } from "../helpers/honoApp.ts";
 import {
   cleanupIsolatedState,
@@ -178,7 +179,8 @@ test("Plex login routes require the original browser cookie and issue a session"
   const cookie = start.headers.get("set-cookie");
   assert.ok(cookie);
   assert.ok(cookie.includes("HttpOnly"));
-  const { id } = await start.json();
+  const startBody: unknown = await start.json();
+  const { id } = v.parse(v.object({ id: v.string() }), startBody);
   const finish = (headers: Record<string, string>) =>
     app.request("/auth/plex/finish", {
       method: "POST",
@@ -188,7 +190,8 @@ test("Plex login routes require the original browser cookie and issue a session"
   assert.equal((await finish({})).status, 400);
   const response = await finish({ cookie });
   assert.equal(response.status, 200);
-  assert.ok((await response.json()).token);
+  const responseBody: unknown = await response.json();
+  assert.ok(v.parse(v.object({ token: v.string() }), responseBody).token);
   assert.match(response.headers.get("set-cookie") || "", /Max-Age=0/);
   assert.equal((await app.request("/auth/plex/link/start", { method: "POST" })).status, 401);
 });
