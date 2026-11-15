@@ -239,6 +239,7 @@ export function RecommendedList({
                   <td className="recommended-table__menu">
                     <ArtistContextMenu
                       artist={artist}
+                      mbid={mbid}
                       onFeedback={handleDiscoveryFeedback}
                       feedbackUsed={getArtistFeedbackFlags(artistFeedbackLookup, artist)}
                     />

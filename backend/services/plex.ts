@@ -77,10 +77,10 @@ const setPendingRemovals = (titles: string[]) => dbOps.setJSONSetting(PENDING_RE
 
 const pendingSignIns = new Map<
   string,
-  { userId: number; code: string; clientId: string; expiresAt: number }
+  { userId: number | string; code: string; clientId: string; expiresAt: number }
 >();
 
-export async function startPlexSignIn(userId: number) {
+export async function startPlexSignIn(userId: number | string) {
   const now = Date.now();
   for (const [id, pending] of pendingSignIns)
     if (pending.expiresAt <= now) pendingSignIns.delete(id);
@@ -103,7 +103,7 @@ export async function startPlexSignIn(userId: number) {
   return { id, authUrl: `https://app.plex.tv/auth#?${query}` };
 }
 
-export async function finishPlexSignIn(userId: number, id: string) {
+export async function finishPlexSignIn(userId: number | string, id: string) {
   const pending = pendingSignIns.get(id);
   if (!pending || pending.userId !== userId || pending.expiresAt <= Date.now())
     throw new PlexError("The Plex sign-in expired. Try again.");
@@ -164,6 +164,38 @@ export async function plexHistoryAccount(server: PlexServer, userToken: string) 
   if (!accounts.includes(user.id))
     throw new PlexError(`${user.username} doesn't have access to this Plex server`);
   return { username: user.username, accountId: user.id };
+}
+
+export async function plexLoginAccount(server: PlexServer, userToken: string) {
+  const [user, serverIdentity, resources] = await Promise.all([
+    plexTvUser(userToken),
+    http.get(`${server.url}/identity`, {
+      headers: plexHeaders(server.token),
+      timeoutMs: TIMEOUT_MS,
+    }),
+    http.get(`${PLEX_TV}/api/v2/resources`, {
+      headers: plexHeaders(userToken),
+      query: { includeHttps: 1 },
+      timeoutMs: TIMEOUT_MS,
+    }),
+  ]);
+  const machineId = text(object(object(serverIdentity.data).MediaContainer).machineIdentifier);
+  if (!machineId) throw new PlexError("Plex didn't identify the configured server");
+  if (
+    !Array.isArray(resources.data) ||
+    !resources.data.some((resource: unknown) => {
+      const item = object(resource);
+      return (
+        text(item.clientIdentifier) === machineId &&
+        text(item.provides)
+          .split(",")
+          .map((value) => value.trim())
+          .includes("server")
+      );
+    })
+  )
+    throw new PlexError("This Plex account doesn't have access to the configured server");
+  return user;
 }
 
 async function musicSectionFor(server: PlexServer, folder: string) {

@@ -15,6 +15,7 @@ import inbox from "./inbox.ts";
 import library from "./library/index.ts";
 import libraryStreams from "./library/streams.ts";
 import lidarrFeed from "./lidarrFeed.ts";
+import lidarrArtist from "./lidarrArtist.ts";
 import logs from "./logs.ts";
 import mcp from "./mcp.ts";
 import news from "./news.ts";
@@ -93,6 +94,7 @@ export const api = new Hono<AppEnv>()
   .route("/", starPrompt)
   .route("/", wrapped)
   .route("/", lidarrFeed)
+  .route("/", lidarrArtist)
   .route("/", logs);
 
 export const handleError: ErrorHandler<AppEnv> = (error, c) => {

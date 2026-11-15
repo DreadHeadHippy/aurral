@@ -37,6 +37,8 @@ The Lidarr plugin asks Lidarr for an album when Aurral wants it. Lidarr grabs th
 
 New artists go to Lidarr's first root folder. To use another one, fill in **Root folder for new artists**.
 
+Artist menus also offer **Add to Lidarr**. This adds and monitors the artist using the plugin's root folder and that folder's default quality and metadata profiles. It does not start a search for missing albums.
+
 Aurral finds a finished album by its MusicBrainz tags, or by artist and album name when Lidarr didn't tag it. If it can't find the album, the download fails and Aurral tries your next source. Turning on Lidarr's tags avoids this. See [Tag Lidarr's files](#tag-lidarrs-files).
 
 Lidarr joins your other download sources in **Settings > Downloads > Download clients**. It starts after slskd, deemix, Usenet, and Tidarr. To have Lidarr get your albums first, drag it to the top. See [Download source priority and fallback](/integrations/usenet/#download-source-priority-and-fallback).

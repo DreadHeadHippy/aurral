@@ -34,6 +34,8 @@ const [
   { playlistOperationQueue },
   { logger },
   { default: importRoutes },
+  { addArtistToLidarr },
+  { default: lidarrRoutes },
 ] = await setupIsolatedBackend(
   "plugins",
   () => import("../../backend/config/db-sqlite.ts"),
@@ -54,6 +56,8 @@ const [
   () => import("../../backend/services/playlists/playlistOperationQueue.ts"),
   () => import("../../backend/services/logger.ts"),
   () => import("../../backend/routes/playlists/handlers/imports.ts"),
+  () => import("../../backend/services/lidarrArtist.ts"),
+  () => import("../../backend/routes/lidarrArtist.ts"),
 );
 
 const admin = testUser(1, { username: "admin", role: "admin" });
@@ -110,6 +114,59 @@ afterEach(async () => {
 
 afterAll(async () => {
   await cleanupIsolatedState(state);
+});
+
+test("adding an artist uses the enabled Lidarr plugin's root and profiles without duplicating artists", async () => {
+  const mbid = "01234567-89ab-cdef-0123-456789abcdef";
+  await assert.rejects(addArtistToLidarr(mbid), /Enable and configure/);
+  await install(
+    "lidarr",
+    {
+      settings: [
+        { key: "url", label: "URL", type: "text", required: true },
+        { key: "apiKey", label: "API key", type: "password", required: true },
+        { key: "rootFolder", label: "Root", type: "text" },
+      ],
+    },
+    "export default {}",
+  );
+  assert.equal(
+    (
+      await turnOn("lidarr", {
+        settings: { url: "http://lidarr.test", apiKey: "test-key", rootFolder: "/music/chosen" },
+      })
+    ).status,
+    200,
+  );
+  const forbidden = signedInAs(testUser(99)).route("/", lidarrRoutes);
+  assert.equal((await forbidden.request("/lidarr-artist", json("POST", { mbid }))).status, 403);
+  let added = false;
+  const sent: Record<string, unknown>[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    if (url.pathname === "/api/v1/artist" && init?.method === "POST") {
+      const body: Record<string, unknown> = JSON.parse(String(init.body));
+      sent.push(body);
+      added = true;
+      return Response.json(body);
+    }
+    if (url.pathname === "/api/v1/artist") {
+      assert.equal(url.searchParams.get("mbId"), mbid);
+      return Response.json(added ? [{ foreignArtistId: mbid }] : []);
+    }
+    if (url.pathname === "/api/v1/artist/lookup")
+      return Response.json([{ foreignArtistId: mbid, artistName: "Example" }]);
+    if (url.pathname === "/api/v1/rootfolder")
+      return Response.json([
+        { path: "/music/chosen", defaultQualityProfileId: 3, defaultMetadataProfileId: 4 },
+      ]);
+    return new Response(null, { status: 404 });
+  });
+  assert.deepEqual(await addArtistToLidarr(mbid), { alreadyAdded: false });
+  assert.equal(sent[0]?.rootFolderPath, "/music/chosen");
+  assert.equal(sent[0]?.qualityProfileId, 3);
+  assert.equal(sent[0]?.metadataProfileId, 4);
+  assert.deepEqual(await addArtistToLidarr(mbid), { alreadyAdded: true });
 });
 
 test("a playlist action shows once its plugin is on and set up, and gets the playlist", async () => {

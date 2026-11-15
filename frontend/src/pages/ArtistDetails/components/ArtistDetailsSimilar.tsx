@@ -155,6 +155,7 @@ export function ArtistDetailsSimilar({
                   </p>
                   <ArtistContextMenu
                     artist={similar}
+                    mbid={typeof artistId === "string" ? artistId : null}
                     isInLibrary={inLibrary}
                     onFeedback={onArtistFeedback}
                     feedbackUsed={

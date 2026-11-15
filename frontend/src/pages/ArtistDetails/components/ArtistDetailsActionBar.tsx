@@ -5,11 +5,10 @@ import {
   Pause,
   Pencil,
   Play,
+  Plus,
   RefreshCw,
   Share,
   Shuffle,
-  ThumbsDown,
-  ThumbsUp,
 } from "../../../components/icons";
 import { DotLoader } from "../../../components/DotLoader";
 import { getDiscoveryFeedbackLabel } from "../../../utils/discoveryFeedback";
@@ -18,6 +17,7 @@ import { ArtistMonitoringButtons } from "../../../components/ArtistMonitoringBut
 import { LibraryItemMenu, type LibraryMenuItem } from "../../../components/LibraryItemMenu";
 import { useShareAction } from "../../../hooks/useShareAction";
 import { useMediaQuery } from "../../../hooks/useMediaQuery.ts";
+import { useLidarrArtist } from "../../../hooks/useLidarrArtist";
 import RouteLink from "../../../components/RouteLink";
 import type { ArtistFeedbackAction } from "../../../utils/artistTaste.ts";
 import type { useArtistDetailsLibrary } from "../hooks/useArtistDetailsLibrary";
@@ -90,6 +90,7 @@ export function ArtistDetailsActionBar({
 }) {
   const narrow = useMediaQuery("(max-width: 359px)");
   const share = useShareAction();
+  const lidarr = useLidarrArtist(mbid, artistName || "artist");
   const isPreviewPlaying = isArtistPlaybackActive;
 
   const renderLibraryAction = () => {
@@ -156,17 +157,19 @@ export function ArtistDetailsActionBar({
       separatorBefore: narrow,
       onSelect: () => share({ kind: "artist", artistMbid: mbid, artistName }, artistName),
     },
-    ...(onTasteFeedback
+    ...(lidarr.canAdd
       ? [
           {
-            ...feedbackItem(
-              "more_like_this",
-              ThumbsUp,
-              getDiscoveryFeedbackLabel("more_like_this"),
-            ),
-            separatorBefore: true,
+            id: "add-lidarr",
+            label: "Add to Lidarr",
+            icon: Plus,
+            disabled: lidarr.pending,
+            onSelect: lidarr.add,
           },
-          feedbackItem("less_like_this", ThumbsDown, getDiscoveryFeedbackLabel("less_like_this")),
+        ]
+      : []),
+    ...(onTasteFeedback
+      ? [
           {
             ...feedbackItem(
               "block_artist",

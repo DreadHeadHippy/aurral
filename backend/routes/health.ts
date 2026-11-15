@@ -24,6 +24,7 @@ import {
 import { getOidcBootstrapInfo } from "../services/oidcAuth.ts";
 import { pendingLidarrConversion } from "../services/lidarrConversionReport.ts";
 import { isGoogleLoginEnabled } from "../services/googleAuth.ts";
+import { plexLoginEnabled } from "../services/plexLogin.ts";
 import { getDiscoveryCache } from "../services/discovery/index.ts";
 import { getDiscoveryStatus } from "../services/discovery/userDiscovery.ts";
 import { getCachedArtistCount } from "../services/libraryManager.ts";
@@ -254,6 +255,7 @@ type BootstrapPayload = {
   oidcEnabled: boolean;
   oidcLogoutUrl: string | null;
   googleLoginEnabled: boolean;
+  plexLoginEnabled: boolean;
   ssoOnly: boolean;
   onboardingRequired: boolean;
   dateTimeFormat: string;
@@ -319,6 +321,7 @@ function buildBootstrapPayload(req: CredentialRequest) {
     oidcEnabled: oidcInfo.oidcEnabled,
     oidcLogoutUrl: oidcInfo.oidcLogoutUrl,
     googleLoginEnabled: isGoogleLoginEnabled(),
+    plexLoginEnabled: plexLoginEnabled(),
     ssoOnly: true,
     onboardingRequired: !onboardingDone,
     dateTimeFormat: settings.dateTimeFormat,

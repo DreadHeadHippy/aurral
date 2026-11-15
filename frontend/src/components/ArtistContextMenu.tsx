@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from "react";
-import { Ban, Library, MoreVertical, ThumbsDown, ThumbsUp, type IconComponent } from "./icons";
+import { Ban, Library, MoreVertical, Plus, type IconComponent } from "./icons";
 import { getDiscoveryFeedbackLabel } from "../utils/discoveryFeedback";
 import { LibraryItemMenu } from "./LibraryItemMenu";
 import TooltipButton from "./TooltipButton";
 import Tooltip from "./Tooltip";
 import RouteLink from "./RouteLink";
 import { DotLoader } from "./DotLoader";
+import { useLidarrArtist } from "../hooks/useLidarrArtist";
 
 type FeedbackAction = "more_like_this" | "less_like_this" | "block_artist";
 type ArtistMenuArtist = { name?: string | null; artistName?: string | null };
@@ -15,6 +16,7 @@ type FeedbackItemDef = { id: FeedbackAction; icon: IconComponent; danger?: boole
 interface ArtistContextMenuProps {
   artist?: ArtistMenuArtist | null;
   artistName?: string | null;
+  mbid?: string | null;
   isInLibrary?: boolean;
   getLibraryLink?: (artist: ArtistMenuArtist | null | undefined) => LibraryLink | null;
   onFeedback?: (
@@ -39,6 +41,7 @@ export function ArtistContextMenu(props: ArtistContextMenuProps): ReactNode;
 export function ArtistContextMenu({
   artist,
   artistName,
+  mbid,
   isInLibrary = false,
   getLibraryLink,
   onFeedback,
@@ -49,24 +52,21 @@ export function ArtistContextMenu({
 }: ArtistContextMenuProps) {
   const [pendingAction, setPendingAction] = useState<FeedbackAction | null>(null);
   const labelName = artistName || artist?.name || artist?.artistName || "artist";
+  const lidarr = useLidarrArtist(mbid, labelName);
   const libraryLink = isInLibrary ? getLibraryLink?.(artist) || null : null;
   const hasLibraryItem = Boolean(libraryLink);
   const feedbackItems = onFeedback
-    ? (
-        [
-          { id: "more_like_this", icon: ThumbsUp },
-          { id: "less_like_this", icon: ThumbsDown },
-          { id: "block_artist", icon: Ban, danger: true },
-        ] satisfies FeedbackItemDef[]
-      ).map((item) => ({
-        ...item,
-        label:
-          item.id === "block_artist" && feedbackUsed.block_artist
-            ? "Unblock artist"
-            : getDiscoveryFeedbackLabel(item.id),
-        selected: !!feedbackUsed[item.id],
-        onSelect: () => onFeedback(artist, item.id, { isSelected: !!feedbackUsed[item.id] }),
-      }))
+    ? ([{ id: "block_artist", icon: Ban, danger: true }] satisfies FeedbackItemDef[]).map(
+        (item) => ({
+          ...item,
+          label:
+            item.id === "block_artist" && feedbackUsed.block_artist
+              ? "Unblock artist"
+              : getDiscoveryFeedbackLabel(item.id),
+          selected: !!feedbackUsed[item.id],
+          onSelect: () => onFeedback(artist, item.id, { isSelected: !!feedbackUsed[item.id] }),
+        }),
+      )
     : [];
 
   const libraryItems = hasLibraryItem
@@ -81,7 +81,7 @@ export function ArtistContextMenu({
       ]
     : [];
 
-  if (!hasLibraryItem && !onFeedback) return null;
+  if (!hasLibraryItem && !onFeedback && !lidarr.canAdd) return null;
 
   if (menuLayout === "inline") {
     const runFeedback = async (item: (typeof feedbackItems)[number]) => {
@@ -110,6 +110,20 @@ export function ArtistContextMenu({
             </RouteLink>
           </Tooltip>
         ) : null}
+        {lidarr.canAdd && (
+          <TooltipButton
+            label="Add to Lidarr"
+            className="btn btn-icon-square artist-context-menu__inline-action"
+            onClick={lidarr.add}
+            disabled={lidarr.pending}
+          >
+            {lidarr.pending ? (
+              <DotLoader size="sm" label={null} />
+            ) : (
+              <Plus className="artist-icon-sm" />
+            )}
+          </TooltipButton>
+        )}
         {feedbackItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -141,7 +155,21 @@ export function ArtistContextMenu({
         triggerLabel={`Artist options for ${labelName}`}
         triggerClassName={buttonClassName}
         triggerIcon={<MoreVertical className="artist-icon-sm" aria-hidden="true" />}
-        items={[...libraryItems, ...feedbackItems]}
+        items={[
+          ...libraryItems,
+          ...(lidarr.canAdd
+            ? [
+                {
+                  id: "add-lidarr",
+                  label: "Add to Lidarr",
+                  icon: Plus,
+                  disabled: lidarr.pending,
+                  onSelect: lidarr.add,
+                },
+              ]
+            : []),
+          ...feedbackItems,
+        ]}
       />
     </div>
   );

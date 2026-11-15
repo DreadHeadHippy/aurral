@@ -9,6 +9,7 @@ import { useToast } from "../../../contexts/ToastContext";
 import { queryKeys } from "../../../queryClient.ts";
 import { SettingsGroup, SettingsNote, SettingsRow } from "../SettingsLayout";
 import { readApiError } from "../../../utils/api/errors.ts";
+import { openPlexPopup, runPlexLogin } from "../../../utils/plexLogin.ts";
 
 type Identity = InferResponseType<typeof usersClient.me.identities.$get, 200>["identities"][number];
 type StartLink = () => Promise<{ authUrl: string }>;
@@ -19,6 +20,7 @@ const unlinkIdentity = (id: number) =>
 const PROVIDER_LABELS: Partial<Record<string, string>> = {
   oidc: "Single sign-on",
   google: "Google",
+  "plex-login": "Plex",
 };
 
 const providerLabel = (identity: Identity) =>
@@ -39,6 +41,7 @@ export function ConnectedAccountsSection() {
   const queryClient = useQueryClient();
   const identitiesQuery = useMyIdentities();
   const [unlinkingId, setUnlinkingId] = useState<number | null>(null);
+  const [linkingPlex, setLinkingPlex] = useState(false);
 
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: queryKeys.myIdentities(user?.id) });
@@ -82,12 +85,21 @@ export function ConnectedAccountsSection() {
   const identities = identitiesQuery.data?.identities ?? [];
   const oidcAvailable = !!bootstrap?.oidcEnabled;
   const googleAvailable = !!bootstrap?.googleLoginEnabled;
+  const canConnectPlex =
+    !!bootstrap?.plexLoginEnabled &&
+    !identities.some((identity) => identity.providerType === "plex-login");
   const canConnectOidc =
     oidcAvailable && !identities.some((identity) => identity.providerType === "oidc");
   const canConnectGoogle =
     googleAvailable && !identities.some((identity) => identity.providerType === "google");
 
-  if (!identitiesQuery.isError && !identities.length && !canConnectOidc && !canConnectGoogle) {
+  if (
+    !identitiesQuery.isError &&
+    !identities.length &&
+    !canConnectOidc &&
+    !canConnectGoogle &&
+    !canConnectPlex
+  ) {
     return null;
   }
 
@@ -142,6 +154,36 @@ export function ConnectedAccountsSection() {
             }
           >
             Connect
+          </button>
+        </SettingsRow>
+      ) : null}
+      {canConnectPlex ? (
+        <SettingsRow label="Plex">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={linkingPlex}
+            onClick={async () => {
+              let popup: Window | null = null;
+              try {
+                popup = openPlexPopup();
+                if (!(await promptReauth())) return;
+                setLinkingPlex(true);
+                await runPlexLogin(popup, true);
+                await refresh();
+                showSuccess("Plex connected.");
+              } catch (error) {
+                const failure = readApiError(error);
+                showError(
+                  failure.message || failure.error || failure.text || "Failed to connect Plex",
+                );
+              } finally {
+                popup?.close();
+                setLinkingPlex(false);
+              }
+            }}
+          >
+            {linkingPlex ? "Connecting…" : "Connect"}
           </button>
         </SettingsRow>
       ) : null}

@@ -30,6 +30,7 @@ import {
 import { logger } from "../services/logger.ts";
 import { isErrorStatus } from "./shared/errorStatus.ts";
 import { asAppError, type AppError } from "../../lib/errors.ts";
+import { completePlexLogin, plexLoginCookie, startPlexLogin } from "../services/plexLogin.ts";
 
 const bearerToken = <E extends AppEnv>(c: Context<E>) => {
   const header = c.req.header("authorization") || "";
@@ -53,9 +54,64 @@ const loginBody = v.object({
 });
 const reauthBody = v.object({ currentPassword: v.optional(v.string()) });
 const exchangeBody = v.object({ code: v.optional(v.string()) });
+const plexFinishBody = v.object({ id: v.string() });
+
+async function beginPlex<E extends AppEnv>(c: Context<E>, userId: number | null) {
+  try {
+    const result = await startPlexLogin(userId);
+    c.header("Set-Cookie", plexLoginCookie(result.secret, isSecure(c)));
+    return c.json({ id: result.id, authUrl: result.authUrl }, 200);
+  } catch (error) {
+    logger.warn("auth", "Plex login start failed", { message: asAppError(error)?.message });
+    return c.json(
+      { error: "Could not start Plex sign-in. Check the Plex server connection." },
+      502,
+    );
+  }
+}
 
 export default new Hono<AppEnv>()
   .basePath("/auth")
+  .post("/plex/start", (c) => beginPlex(c, null))
+  .post("/plex/link/start", requireAuth, requireRecentAuth(), (c) => beginPlex(c, c.var.user.id))
+  .post("/plex/finish", validate("json", plexFinishBody), async (c) => {
+    try {
+      const result = await completePlexLogin(
+        c.req.valid("json").id,
+        c.req.header("cookie"),
+        null,
+        c.var.clientIp || null,
+        c.req.header("user-agent") || null,
+      );
+      if (result.done) c.header("Set-Cookie", plexLoginCookie("", isSecure(c), 0));
+      return c.json(result, 200);
+    } catch (error) {
+      logger.warn("auth", "Plex sign-in failed", { message: asAppError(error)?.message });
+      return c.json({ error: asAppError(error)?.message || "Plex sign-in failed" }, 400);
+    }
+  })
+  .post(
+    "/plex/link/finish",
+    requireAuth,
+    requireRecentAuth(),
+    validate("json", plexFinishBody),
+    async (c) => {
+      try {
+        const result = await completePlexLogin(
+          c.req.valid("json").id,
+          c.req.header("cookie"),
+          c.var.user.id,
+          c.var.clientIp || null,
+          c.req.header("user-agent") || null,
+        );
+        if (result.done) c.header("Set-Cookie", plexLoginCookie("", isSecure(c), 0));
+        return c.json(result, 200);
+      } catch (error) {
+        logger.warn("auth", "Plex account link failed", { message: asAppError(error)?.message });
+        return c.json({ error: asAppError(error)?.message || "Plex account link failed" }, 400);
+      }
+    },
+  )
   .post("/login", validate("json", loginBody), (c) => {
     try {
       const body = c.req.valid("json");

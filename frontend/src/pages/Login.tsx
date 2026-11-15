@@ -6,6 +6,9 @@ import { useSiteLogo } from "../hooks/useSiteLogo";
 import { getAppBasePath } from "../utils/basePath.ts";
 import { DotLoader } from "../components/DotLoader";
 import { rememberShareImport } from "../utils/shareLink.ts";
+import { setStoredAuth, asApiError } from "../utils/api/core.ts";
+import { invalidateBootstrapCache } from "../utils/appHealth.ts";
+import { openPlexPopup, runPlexLogin } from "../utils/plexLogin.ts";
 
 const buildApiUrl = (path: string) => {
   const basePath = getAppBasePath();
@@ -22,10 +25,12 @@ const Login = () => {
   const [showLocalForm, setShowLocalForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [startingSso, setStartingSso] = useState(false);
-  const { login, bootstrap } = useAuth();
+  const [startingPlex, setStartingPlex] = useState(false);
+  const { login, bootstrap, refreshAuth } = useAuth();
   const oidcEnabled = !!bootstrap?.oidcEnabled;
   const googleEnabled = !!bootstrap?.googleLoginEnabled;
-  const hasSsoOption = oidcEnabled || googleEnabled;
+  const plexEnabled = !!bootstrap?.plexLoginEnabled;
+  const hasSsoOption = oidcEnabled || googleEnabled || plexEnabled;
   const localFormVisible = !hasSsoOption || showLocalForm;
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -59,6 +64,29 @@ const Login = () => {
     window.location.assign(buildApiUrl("/api/auth/google/login"));
   };
 
+  const handlePlexLogin = async () => {
+    try {
+      const popup = openPlexPopup();
+      setStartingPlex(true);
+      const result = await runPlexLogin(popup, false);
+      if (!result.done || result.linked) throw new Error("Plex did not return a session");
+      setStoredAuth({ token: result.token });
+      invalidateBootstrapCache();
+      if (!(await refreshAuth())) throw new Error("Could not load your account after Plex sign-in");
+    } catch (error) {
+      const data = asApiError(error)?.response?.data;
+      setError(
+        typeof data === "object" && data && typeof data.error === "string"
+          ? data.error
+          : error instanceof Error
+            ? error.message
+            : "Plex sign-in failed",
+      );
+    } finally {
+      setStartingPlex(false);
+    }
+  };
+
   return (
     <main className="login-page">
       <div className="login-card">
@@ -69,6 +97,16 @@ const Login = () => {
 
         {hasSsoOption && (
           <div className="login-sso">
+            {plexEnabled && (
+              <button
+                type="button"
+                className="btn btn-secondary btn--full login-sso-button"
+                onClick={handlePlexLogin}
+                disabled={startingPlex}
+              >
+                {startingPlex ? "Signing in with Plex…" : "Sign in with Plex"}
+              </button>
+            )}
             {oidcEnabled && (
               <button
                 type="button"

@@ -84,6 +84,8 @@ const openPaths = new Set([
   "/api/auth/oidc/exchange",
   "/api/auth/google/login",
   "/api/auth/google/exchange",
+  "/api/auth/plex/start",
+  "/api/auth/plex/finish",
   "/api/mcp",
 ]);
 

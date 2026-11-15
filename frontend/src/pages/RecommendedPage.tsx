@@ -4,13 +4,13 @@ import ArtistImage from "../components/ArtistImage";
 import { useArtistTint } from "../components/CollectionHeader";
 import { DiscoverRail } from "../components/DiscoverRail";
 import { DotLoader } from "../components/DotLoader";
-import { Pause, Play, ThumbsDown, ThumbsUp } from "../components/icons";
+import { Pause, Play, Plus } from "../components/icons";
 import RouteLink from "../components/RouteLink";
 import { SettingsLink } from "../navigation/settingsRoute";
 import { SkeletonRail, SkeletonStatus } from "../components/Skeletons";
-import TooltipButton from "../components/TooltipButton";
 import { useToast } from "../contexts/ToastContext";
 import { useArtistPreviewPlayback } from "../hooks/useArtistPreviewPlayback";
+import { useLidarrArtist } from "../hooks/useLidarrArtist";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import {
   RECOMMENDED_ALL_PATH,
@@ -88,8 +88,6 @@ function TopPick({
   artist,
   basedOn,
   context,
-  artistFeedbackLookup,
-  handleDiscoveryFeedback,
 }: FeedbackProps & {
   artist: DiscoverArtist;
   basedOn: DiscoverData["basedOn"];
@@ -102,14 +100,11 @@ function TopPick({
   const reason = pickReason(artist, context.seeds);
   const seeds = reason.kind === "like" ? reason.names : [];
   const seedIds = new Map(basedOn.flatMap((seed) => (seed.name ? [[seed.name, seed.id]] : [])));
-  const feedbackUsed = getArtistFeedbackFlags(artistFeedbackLookup, artist);
+  const lidarr = useLidarrArtist(mbid, artist.name || "artist");
   const to = artistPath(artist);
   const preview = async () => {
     if (!(await playArtistPreview())) showInfo(`No preview found for ${artist.name}`);
   };
-  const feedback = (action: "more_like_this" | "less_like_this") =>
-    handleDiscoveryFeedback(artist, action, { isSelected: Boolean(feedbackUsed[action]) });
-
   return (
     <section className="recommended-spotlight" aria-label="Top pick">
       <ArtistImage
@@ -162,24 +157,17 @@ function TopPick({
             )}
             {isArtistPreviewActive ? "Pause" : "Preview"}
           </button>
-          <TooltipButton
-            type="button"
-            label="More like this"
-            className={`btn btn-icon-square${feedbackUsed.more_like_this ? " is-selected" : ""}`}
-            aria-pressed={Boolean(feedbackUsed.more_like_this)}
-            onClick={() => feedback("more_like_this")}
-          >
-            <ThumbsUp aria-hidden="true" />
-          </TooltipButton>
-          <TooltipButton
-            type="button"
-            label="Less like this"
-            className={`btn btn-icon-square${feedbackUsed.less_like_this ? " is-selected" : ""}`}
-            aria-pressed={Boolean(feedbackUsed.less_like_this)}
-            onClick={() => feedback("less_like_this")}
-          >
-            <ThumbsDown aria-hidden="true" />
-          </TooltipButton>
+          {lidarr.canAdd && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={lidarr.add}
+              disabled={lidarr.pending}
+            >
+              {lidarr.pending ? <DotLoader size="sm" label={null} /> : <Plus aria-hidden="true" />}
+              Add to Lidarr
+            </button>
+          )}
         </div>
       </div>
       {seeds.length > 0 ? (

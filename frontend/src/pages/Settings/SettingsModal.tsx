@@ -66,10 +66,18 @@ export default function SettingsModal() {
     () =>
       searchSettings(query, {
         canManageServer: isAdmin,
-        signInMethods: Boolean(bootstrap?.oidcEnabled || bootstrap?.googleLoginEnabled),
+        signInMethods: Boolean(
+          bootstrap?.oidcEnabled || bootstrap?.googleLoginEnabled || bootstrap?.plexLoginEnabled,
+        ),
         sidebarArt: resolveSidebarStageBackdropVariant() !== null,
       }),
-    [query, isAdmin, bootstrap?.oidcEnabled, bootstrap?.googleLoginEnabled],
+    [
+      query,
+      isAdmin,
+      bootstrap?.oidcEnabled,
+      bootstrap?.googleLoginEnabled,
+      bootstrap?.plexLoginEnabled,
+    ],
   );
   const [target, setTarget] = useState<SettingsSearchResult | null>(null);
   const scrolled = useCallback(() => setTarget(null), []);

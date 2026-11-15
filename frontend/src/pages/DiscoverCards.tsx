@@ -144,6 +144,7 @@ export const ArtistCard = memo(
           <div className="artist-discover-card__menu">
             <ArtistContextMenu
               artist={artist}
+              mbid={hasValidMbid ? navigateTo : null}
               isInLibrary={isInLibrary}
               getLibraryLink={getLibraryLink}
               onFeedback={onFeedback}

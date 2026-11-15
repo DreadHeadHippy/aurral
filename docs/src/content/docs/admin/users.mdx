@@ -44,6 +44,7 @@ Aurral supports these sign-in methods:
 - Local-network auto-login, for a single admin on a home network
 - Native OpenID Connect (OIDC)
 - Google, for users who linked a Google account
+- Plex, for accounts with access to the connected Plex server
 - Reverse-proxy authentication
 
 A user can always sign in with their local password, if they have one.
@@ -113,13 +114,17 @@ Google sign-in lets a user sign in to an account that already exists. It never c
 
 Each user then opens **Settings > Profile > Sign-in methods** and selects **Connect** next to **Google**. After that, the user can select **Sign in with Google** on the sign-in page.
 
-### Plex sign-in was removed
+## Sign in with Plex
 
-Aurral no longer offers Sign in with Plex. Users who signed in with Plex use their password, Google, or single sign-on instead. An admin can set a password for a user in **Settings > Users**. If the admin signed in with Plex too, [reset the admin password](#reset-the-admin-password) from the server.
+An admin first connects the Plex server in **Settings > Listening > Plex**. The sign-in page then offers **Sign in with Plex**. Aurral checks that the account currently has access to that server. A new Plex account creates a regular Aurral user with the default permissions; it never becomes an admin automatically.
+
+To use Plex with an existing Aurral account, sign in to that account first and select **Connect** next to Plex in **Settings > Profile > Sign-in methods**. Do this before the first Plex sign-in, which otherwise creates a separate account. Aurral never links accounts by matching usernames or email addresses.
+
+Access is checked when signing in. Removing access in Plex does not immediately end an existing Aurral session; suspend the Aurral user in **Settings > Users** to end its sessions.
 
 ### Manage connected accounts
 
-**Settings > Profile > Sign-in methods** lists the SSO and Google identities linked to your account. To remove one, select **Disconnect**.
+**Settings > Profile > Sign-in methods** lists the SSO, Google, and Plex identities linked to your account. To remove one, select **Disconnect**.
 
 You cannot remove your last way to sign in. If your account has no local password, set a password or link another account first.
 
@@ -134,7 +139,7 @@ If you signed in more than 15 minutes ago, Aurral asks for your current password
 
 ## Sign-in page with SSO
 
-When OIDC or Google sign-in is configured, the sign-in page leads with it and hides the username and password form behind **Sign in with a local account instead**, so local accounts and the recovery admin cannot be locked out.
+When OIDC, Google, or Plex sign-in is configured, the sign-in page leads with it and hides the username and password form behind **Sign in with a local account instead**, so local accounts and the recovery admin cannot be locked out.
 
 ## Reverse-proxy authentication
 

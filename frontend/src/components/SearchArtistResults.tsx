@@ -133,6 +133,7 @@ export function SearchArtistCard({
     <div className="artist-discover-card__menu">
       <ArtistContextMenu
         artist={artist}
+        mbid={typeof artistId === "string" ? artistId : null}
         isInLibrary={isInLibrary}
         onFeedback={onArtistFeedback}
         menuLayout={isList ? "inline" : "text"}
