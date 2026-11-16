@@ -1,6 +1,6 @@
 services:
   aurral:
-    image: ghcr.io/lklynet/aurral:latest
+    image: ghcr.io/dreadheadhippy/aurral:main
     restart: unless-stopped
     ports:
       - "3001:3001"

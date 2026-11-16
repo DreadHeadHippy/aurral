@@ -53,7 +53,7 @@ export async function addArtistToLidarr(mbid: string) {
       rootFolderPath: root.path,
       qualityProfileId: root.defaultQualityProfileId,
       metadataProfileId: root.defaultMetadataProfileId,
-      addOptions: { monitor: "all", searchForMissingAlbums: false },
+      addOptions: { monitor: "all", searchForMissingAlbums: true },
     },
     options,
   );

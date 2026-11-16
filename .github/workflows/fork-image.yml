@@ -2,14 +2,19 @@ name: Fork image
 
 on:
   push:
-    branches: ["feat/plex-login-lidarr"]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: fork-image-main
+  cancel-in-progress: true
+
 jobs:
   build:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -70,5 +75,5 @@ jobs:
           VERSION: ${{ steps.image.outputs.version }}
         run: |
           docker push "$IMAGE:$VERSION"
-          docker tag "$IMAGE:$VERSION" "$IMAGE:nightly"
-          docker push "$IMAGE:nightly"
+          docker tag "$IMAGE:$VERSION" "$IMAGE:main"
+          docker push "$IMAGE:main"

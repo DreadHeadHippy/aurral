@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import * as v from "valibot";
 import { afterAll, test } from "vite-plus/test";
+import { CATALOGUE_ARTISTS } from "../catalogue/artists.ts";
 import type { ServiceName } from "../services/index.ts";
-import { local } from "../services/service.ts";
+import { LIDARR_API_KEY } from "../services/lidarr.ts";
+import { json, local } from "../services/service.ts";
 import { LOGIN } from "../state.ts";
 import { api, aurralRows, getJson, has, ports, until, worldRelease } from "./eden.ts";
 
@@ -77,6 +79,37 @@ JOURNEYS.forEach(({ source, recordedAs }, index) => {
     for (const job of carriers) assert.equal(job.download_source, recordedAs);
   });
 });
+
+test.skipIf(!has("lidarr"))(
+  "adding an artist to Lidarr starts a missing album search",
+  async () => {
+    const downloadArtists = new Set(JOURNEYS.map((_, index) => worldRelease(index).artistId));
+    const artist = CATALOGUE_ARTISTS.find(([id]) => !downloadArtists.has(id));
+    assert.ok(artist);
+    const [mbid] = artist;
+    await leaveOn((source) => source === "lidarr");
+    assert.deepEqual(await api.post("/lidarr-artist", { mbid }), { alreadyAdded: false });
+
+    const base = `${local(ports.lidarr)}/api/v1`;
+    const headers = { "x-api-key": LIDARR_API_KEY };
+    const artists = v.parse(
+      v.array(v.looseObject({ id: v.number(), foreignArtistId: v.string() })),
+      await json(`${base}/artist?mbId=${mbid}`, { headers }),
+    );
+    const added = artists.find((item) => item.foreignArtistId === mbid);
+    assert.ok(added);
+    const search = v.looseObject({
+      name: v.literal("MissingAlbumSearch"),
+      body: v.looseObject({ artistId: v.number() }),
+    });
+    await until("Lidarr to search the artist's missing albums", async () => {
+      const commands = v.parse(v.array(v.unknown()), await json(`${base}/command`, { headers }));
+      return commands.some(
+        (command) => v.is(search, command) && command.body.artistId === added.id,
+      );
+    });
+  },
+);
 
 test.skipIf(!has("webhooks", "gotify"))(
   "the webhook and Gotify hear a request made and filled",

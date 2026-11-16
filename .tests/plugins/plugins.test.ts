@@ -167,7 +167,9 @@ test("adding an artist uses the enabled Lidarr plugin's root and profiles withou
   assert.equal(sent[0]?.rootFolderPath, "/music/chosen");
   assert.equal(sent[0]?.qualityProfileId, 3);
   assert.equal(sent[0]?.metadataProfileId, 4);
+  assert.deepEqual(sent[0]?.addOptions, { monitor: "all", searchForMissingAlbums: true });
   assert.deepEqual(await addArtistToLidarr(mbid), { alreadyAdded: true });
+  assert.equal(sent.length, 1);
 });
 
 test("a playlist action shows once its plugin is on and set up, and gets the playlist", async () => {
